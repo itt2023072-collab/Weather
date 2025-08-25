@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>🇱🇰 Sri Lanka Weather</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg:#0f172a; --card:#111827; --muted:#9ca3af; --fg:#e5e7eb; --accent:#38bdf8; --accent2:#818cf8;
+    }
+    *{box-sizing:border-box}
+    body{margin:0; font-family:'Poppins',system-ui,Segoe UI,Roboto,sans-serif; color:var(--fg);
+      background:
+      radial-gradient(90vmax 90vmax at -10% -10%, rgba(56,189,248,.25), transparent 40%),
+      radial-gradient(90vmax 90vmax at 110% 110%, rgba(129,140,248,.25), transparent 40%),
+      var(--bg);
+      min-height:100svh; padding:24px 12px;}
+    .app{max-width:980px; margin:0 auto; display:grid; gap:16px}
+    header{display:flex; gap:12px; align-items:center; justify-content:space-between; flex-wrap:wrap}
+    .brand{display:flex; gap:12px; align-items:center}
+    .logo{width:44px;height:44px;border-radius:14px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:grid;place-items:center;font-weight:800}
+    .title{font-size:1.4rem;font-weight:700}
+
+    .controls{display:flex; gap:8px; flex-wrap:wrap; align-items:center}
+    select,input,button{border:none; border-radius:12px; padding:10px 12px; font-family:inherit; font-size:.95rem}
+    select,input{background:#0b1020; color:var(--fg); border:1px solid rgba(255,255,255,.08)}
+    button{background:linear-gradient(135deg,var(--accent),var(--accent2)); color:white; cursor:pointer; font-weight:700}
+    button:active{transform:translateY(1px)}
+
+    .hint{font-size:.9rem; color:var(--muted)}
+
+    .grid{display:grid; grid-template-columns:1.2fr .8fr; gap:16px}
+    @media (max-width: 880px){.grid{grid-template-columns:1fr}}
+
+    .card{background:rgba(17,24,39,.7); border:1px solid rgba(255,255,255,.08); border-radius:18px; padding:16px; backdrop-filter: blur(6px); box-shadow:0 10px 30px rgba(0,0,0,.25)}
+
+    .current{display:grid; grid-template-columns: 1fr 1fr; gap:16px; align-items:center}
+    @media (max-width: 720px){.current{grid-template-columns:1fr}}
+
+    .big{font-size:3.2rem; font-weight:800; line-height:1}
+    .status{display:flex; align-items:center; gap:12px; margin-top:8px}
+    .status .emoji{font-size:2.2rem}
+    .meta{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:14px}
+    .pill{background:#0b1020; border:1px solid rgba(255,255,255,.08); padding:10px; border-radius:12px; text-align:center}
+
+    .forecast{display:grid; grid-template-columns:repeat(5,1fr); gap:8px}
+    @media (max-width:700px){.forecast{grid-template-columns:repeat(3,1fr)}}
+    .day{background:#0b1020; border:1px solid rgba(255,255,255,.08); padding:12px; border-radius:12px; text-align:center}
+
+    canvas{width:100%; background:#fff; border-radius:12px; padding:8px}
+
+    footer{opacity:.8; text-align:center; font-size:.9rem}
+    a{color:var(--accent)}
+    .ok{color:#22c55e} .warn{color:#f59e0b}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="brand">
+        <div class="logo">⛅</div>
+        <div>
+          <div class="title">Sri Lanka Weather</div>
+          <div class="hint" id="dataSource">Using Open‑Meteo (no key)</div>
+        </div>
+      </div>
+      <div class="controls">
+        <select id="city">
+          <option value="">Select a city</option>
+          <option>Colombo</option>
+          <option>Kandy</option>
+          <option>Galle</option>
+          <option>Jaffna</option>
+          <option>Trincomalee</option>
+          <option>Anuradhapura</option>
+          <option>Batticaloa</option>
+          <option>Kurunegala</option>
+          <option>Matara</option>
+          <option>Ratnapura</option>
+          <option>Polonnaruwa</option>
+          <option>Gampaha</option>
+          <option>Negombo</option>
+          <option>Badulla</option>
+          <option>Nuwara Eliya</option>
+          <option>Hambantota</option>
+          <option>Kalutara</option>
+          <option>Kegalle</option>
+          <option>Moneragala</option>
+          <option>Vavuniya</option>
+          <option>Mannar</option>
+          <option>Kilinochchi</option>
+          <option>Mullaitivu</option>
+          <option>Matale</option>
+          <option>Puttalam</option>
+          <option>Ampara</option>
+        </select>
+        <button id="go">Get Weather</button>
+        <button id="geo">Use my location</button>
+      </div>
+    </header>
+
+    <div class="card">
+      <div class="hint">OpenWeather key (optional):
+        <input id="key" type="password" placeholder="Paste your OpenWeather API key" style="width:260px"/>
+        <button id="saveKey">Save</button>
+        <span id="keyState" class="hint"></span>
+      </div>
+    </div>
+
+    <section class="grid">
+      <div class="card current" id="current">
+        <div>
+          <div id="place" style="font-size:1.15rem; font-weight:700">—</div>
+          <div class="hint" id="updated">Updated —</div>
+          <div class="status">
+            <div class="emoji" id="icon">⛅</div>
+            <div>
+              <div class="big" id="temp">—°C</div>
+              <div class="hint" id="desc">—</div>
+            </div>
+          </div>
+          <div class="meta">
+            <div class="pill">Feels like <div id="feels" style="font-weight:700">—°C</div></div>
+            <div class="pill">Humidity <div id="hum" style="font-weight:700">—%</div></div>
+            <div class="pill">Wind <div id="wind" style="font-weight:700">—</div></div>
+          </div>
+        </div>
+        <div>
+          <canvas id="chart" height="180"></canvas>
+          <div class="hint" style="margin-top:6px">5‑day temperature trend</div>
+          <div class="forecast" id="days"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin:0 0 10px">Tips</h3>
+        <ul style="margin:0; padding-left:18px; line-height:1.8">
+          <li>For best accuracy, paste an <b>OpenWeather API key</b> above and Save. Otherwise the app uses free <a href="https://open-meteo.com/" target="_blank" rel="noreferrer">Open‑Meteo</a>.</li>
+          <li>Select any Sri Lankan city or use your location.</li>
+          <li>If something fails, you’ll see a clear error message below.</li>
+        </ul>
+        <div id="error" class="warn" style="margin-top:10px"></div>
+      </div>
+    </section>
+
+    <footer>Built for 🇱🇰 — no backend required</footer>
+  </div>
+
+  <script>
+    const $ = sel => document.querySelector(sel);
+    const dataSource = $('#dataSource');
+    const errBox = $('#error');
+    let chart;
+
+    // Load/save API key in localStorage so users don't need to edit code
+    const KEY_STORAGE = 'owmKey';
+    const savedKey = localStorage.getItem(KEY_STORAGE) || '';
+    const keyInput = $('#key');
+    const keyState = $('#keyState');
+    keyInput.value = savedKey;
+    updateSourceLabel();
+    $('#saveKey').addEventListener('click', ()=>{
+      localStorage.setItem(KEY_STORAGE, keyInput.value.trim());
+      keyState.textContent = keyInput.value.trim()? 'Saved ✓' : 'Cleared';
+      updateSourceLabel();
+    });
+
+    function updateSourceLabel(){
+      const hasKey = !!(localStorage.getItem(KEY_STORAGE)||'').trim();
+      dataSource.innerHTML = hasKey ? 'Using OpenWeatherMap (with your API key)' : 'Using Open‑Meteo (no key)';
+    }
+
+    function setError(msg){ errBox.textContent = msg || ''; }
+    function setStatus(place,time,emoji,desc,tempC,feelsC,hum,wind){
+      $('#place').textContent = place;
+      $('#updated').textContent = time ? 'Updated ' + new Date(time).toLocaleString() : '—';
+      $('#icon').textContent = emoji;
+      $('#desc').textContent = desc;
+      $('#temp').textContent = Math.round(tempC) + '°C';
+      $('#feels').textContent = Math.round(feelsC) + '°C';
+      $('#hum').textContent = Math.round(hum) + '%';
+      $('#wind').textContent = wind;
+    }
+
+    function codeToIconDesc(code){
+      // WMO codes → emoji + text for Open‑Meteo
+      const map = {0:['☀️','Clear'],1:['🌤️','Mainly clear'],2:['⛅','Partly cloudy'],3:['☁️','Overcast'],45:['🌫️','Fog'],48:['🌫️','Rime fog'],51:['🌦️','Light drizzle'],53:['🌦️','Drizzle'],55:['🌦️','Heavy drizzle'],61:['🌧️','Light rain'],63:['🌧️','Rain'],65:['🌧️','Heavy rain'],71:['🌨️','Light snow'],73:['🌨️','Snow'],75:['🌨️','Heavy snow'],80:['🌦️','Rain showers'],81:['🌧️','Rain showers'],82:['🌧️','Violent showers'],95:['⛈️','Thunderstorm'],96:['⛈️','Storm w/ hail'],99:['⛈️','Storm w/ hail']};
+      return map[code] || ['❓','Unknown'];
+    }
+
+    function drawChart(labels, temps){
+      const ctx = document.getElementById('chart').getContext('2d');
+      if(chart) chart.destroy();
+      chart = new Chart(ctx, {
+        type:'line',
+        data:{ labels, datasets:[{ label:'Daily Temp (°C)', data:temps, fill:true, borderColor:'#f59e0b', backgroundColor:'rgba(245,158,11,.25)', tension:.3, pointRadius:3 }]},
+        options:{ responsive:true, plugins:{legend:{labels:{color:'#000'}}}, scales:{ x:{ticks:{color:'#000'}}, y:{ticks:{color:'#000'}} } }
+      });
+    }
+
+    async function getByCity(){
+      const city = $('#city').value.trim();
+      if(!city){ setError('Select a city'); return; }
+      setError('');
+      const key = (localStorage.getItem(KEY_STORAGE)||'').trim();
+      if(key){ await fetchOpenWeatherCity(city, key); }
+      else{ await fetchOpenMeteoCity(city); }
+    }
+
+    async function getByGeo(){
+      setError('');
+      if(!navigator.geolocation){ setError('Geolocation not supported'); return; }
+      navigator.geolocation.getCurrentPosition(async pos=>{
+        const {latitude:lat, longitude:lon} = pos.coords;
+        const key = (localStorage.getItem(KEY_STORAGE)||'').trim();
+        if(key){ await fetchOpenWeatherLatLon(lat, lon, key, 'Your location'); }
+        else{ await fetchOpenMeteoLatLon(lat, lon, 'Your location'); }
+      }, err=> setError('Location error: ' + err.message), {timeout:7000});
+    }
+
+    // ---------- OpenWeather (needs key) ----------
+    async function fetchOpenWeatherCity(city, key){
+      try{
+        const w = await fetchJSON(`https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(city)},LK&appid=${key}&units=metric`);
+        if(w.cod && Number(w.cod)!==200) throw new Error(w.message || ('HTTP '+w.cod));
+        const f = await fetchJSON(`https://api.openweathermap.org/data/2.5/forecast?q=${encodeURIComponent(city)},LK&appid=${key}&units=metric`);
+        if(f.cod && Number(f.cod)!==200) throw new Error(f.message || ('HTTP '+f.cod));
+        useOpenWeather(w, f);
+      }catch(e){ setError('OpenWeather error: '+e.message+ ' — falling back to Open‑Meteo.'); await fetchOpenMeteoCity(city); }
+    }
+
+    async function fetchOpenWeatherLatLon(lat, lon, key, label){
+      try{
+        const w = await fetchJSON(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${key}&units=metric`);
+        if(w.cod && Number(w.cod)!==200) throw new Error(w.message || ('HTTP '+w.cod));
+        const f = await fetchJSON(`https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&appid=${key}&units=metric`);
+        if(f.cod && Number(f.cod)!==200) throw new Error(f.message || ('HTTP '+f.cod));
+        useOpenWeather(w, f, label);
+      }catch(e){ setError('OpenWeather error: '+e.message+ ' — try adding a valid API key or use city select.'); }
+    }
+
+    function useOpenWeather(w, f, forcedLabel){
+      const place = forcedLabel || `${w.name}, ${w.sys?.country || 'LK'}`;
+      const time = (w.dt||Date.now())*1000;
+      const desc = w.weather?.[0]?.description || '—';
+      const icon = w.weather?.[0]?.icon || '01d';
+      const emoji = ' '; // we'll show PNG icon next to temp
+      setStatus(place,time,emoji,desc,w.main.temp,w.main.feels_like,w.main.humidity, `${Math.round(w.wind.speed)} m/s`);
+      $('#icon').innerHTML = `<img alt="icon" src="https://openweathermap.org/img/wn/${icon}@2x.png" style="width:56px;height:56px">`;
+
+      // Build daily series from 3‑hourly list
+      const byDate = {};
+      (f.list||[]).forEach(it=>{
+        const d = new Date(it.dt*1000); const key = d.toISOString().slice(0,10);
+        if(!byDate[key]) byDate[key] = [];
+        byDate[key].push(it.main.temp);
+      });
+      const labels=[]; const temps=[]; const first5 = Object.keys(byDate).slice(0,5);
+      first5.forEach(k=>{ labels.push(new Date(k).toLocaleDateString()); const arr = byDate[k]; temps.push(Math.round(arr.reduce((a,b)=>a+b,0)/arr.length)); });
+      drawChart(labels, temps);
+
+      // Small 5‑tile forecast summary
+      const box = $('#days'); box.innerHTML='';
+      first5.forEach((k,i)=>{
+        const dayTemps = byDate[k];
+        const min = Math.min(...dayTemps), max = Math.max(...dayTemps);
+        const el = document.createElement('div'); el.className='day';
+        el.innerHTML = `<div style="font-weight:700">${new Date(k).toLocaleDateString(undefined,{weekday:'short'})}</div>
+                        <div class="hint">${Math.round(min)}° / ${Math.round(max)}°</div>`;
+        box.appendChild(el);
+      });
+    }
+
+    // ---------- Open‑Meteo (no key) ----------
+    async function fetchOpenMeteoCity(city){
+      try{
+        const g = await fetchJSON(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&country=LK&count=1&language=en&format=json`);
+        if(!g.results || !g.results.length) throw new Error('City not found');
+        const r = g.results[0];
+        await fetchOpenMeteoLatLon(r.latitude, r.longitude, `${r.name}, Sri Lanka`);
+      }catch(e){ setError('Open‑Meteo error: '+e.message); }
+    }
+
+    async function fetchOpenMeteoLatLon(lat, lon, label){
+      try{
+        const wx = await fetchJSON(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&hourly=relative_humidity_2m,apparent_temperature&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=auto`);
+        const c = wx.current_weather;
+        const [em, desc] = codeToIconDesc(c.weathercode);
+        const time = c.time;
+        // Find matching hourly for feels & humidity
+        let feels = c.temperature, hum = 0;
+        const idx = wx.hourly?.time?.indexOf(c.time) ?? -1;
+        if(idx>=0){ feels = wx.hourly.apparent_temperature?.[idx] ?? c.temperature; hum = wx.hourly.relative_humidity_2m?.[idx] ?? 0; }
+        setStatus(label || `Lat ${lat.toFixed(2)}, Lon ${lon.toFixed(2)}`, time, em, desc, c.temperature, feels, hum, `${Math.round(c.windspeed)} km/h`);
+
+        const labels = (wx.daily?.time || []).slice(0,5).map(d=> new Date(d).toLocaleDateString());
+        const temps = labels.map((_,i)=> Math.round(((wx.daily.temperature_2m_max?.[i]||0)+(wx.daily.temperature_2m_min?.[i]||0))/2));
+        drawChart(labels, temps);
+
+        const box = $('#days'); box.innerHTML='';
+        (wx.daily?.time||[]).slice(0,5).forEach((d,i)=>{
+          const [e, descD] = codeToIconDesc(wx.daily.weathercode?.[i]||0);
+          const el = document.createElement('div'); el.className='day';
+          el.innerHTML = `<div style="font-weight:700">${new Date(d).toLocaleDateString(undefined,{weekday:'short'})}</div>
+                          <div style="font-size:1.4rem">${e}</div>
+                          <div class="hint">${descD}</div>
+                          <div style="margin-top:4px">${Math.round(wx.daily.temperature_2m_min?.[i]||0)}° / ${Math.round(wx.daily.temperature_2m_max?.[i]||0)}°</div>`;
+          box.appendChild(el);
+        });
+      }catch(e){ setError('Open‑Meteo error: '+e.message); }
+    }
+
+    async function fetchJSON(url){
+      const r = await fetch(url);
+      if(!r.ok){
+        let msg = r.status + ' ' + r.statusText;
+        try{ const body = await r.json(); if(body.message) msg += ' — ' + body.message; }catch{}
+        throw new Error(msg);
+      }
+      return r.json();
+    }
+
+    // UI events
+    $('#go').addEventListener('click', getByCity);
+    $('#geo').addEventListener('click', getByGeo);
+
+    // Load default city on first run
+    (async function init(){
+      $('#city').value = 'Colombo';
+      await getByCity();
+    })();
+  </script>
+</body>
+</html>
